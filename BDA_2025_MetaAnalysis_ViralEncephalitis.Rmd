@@ -1,0 +1,838 @@
+---
+title: "BDA_2025_MetaAnalysis_ViralEncephalitis"
+author: "Duy Nguyen"
+date: "2025-05-31"
+output:  
+  pdf_document:
+    latex_engine: xelatex
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Research Guide of Meta-Analysis of Transcriptomics Profile in Viral Encephalitis (Updated 2025)
+
+**Step 1:** Project set up with necessary packages
+
+**Step 2:** Search for dataset in Gemma using individual search terms, including:
+
+- Relevant search terms
+
+- Specific virus names with capabilities for causing encephalitis
+
+**Step 3:** Assess gene expression range 
+
+Some datasets, especially Agilent microarray datasets, were normalized incorrectly,
+which may require re-normalization.
+
+*Function:* 
+
+- `CheckGeneExpressionRange()`: Function to check expression range of the dataset
+
+**Step 4:** Extract statistical contrasts of differential analysis in the datasets
+
+These statistical contrasts allow us to check if the differential analyses are:
+
+- Subsetted by brain region 
+
+- Included unwanted subjects
+
+- Set up in an appropriate manner with the reference group
+
+Based on the statistical contrasts, we might need to re-run the differential analysis
+
+*Function:*
+
+- `GettingResultSetInfoForDatasets()`: Function to extract statistical contrasts of 
+differential analysis in each dataset
+
+*Output object:* 
+
+- ResultSets_toScreen
+
+- ExperimentIDs
+
+**Step 5:** Download the differential expression (DE) results from each dataset 
+
+*Functions:*
+
+- `DownloadingDEResults()`: Function to download DE results and extract Log2FC and 
+T-stat for contrasts of interest
+
+- `SavingGemmaDEResults_forEachResultSet()`: Function to save DE results for each
+ResultSet into the working directory
+
+*Output objects:* 
+
+- ResultSets_contrasts (Rename of ResultSets_Screened)
+
+- UniqueResultSetIDs
+
+- differentials 
+
+- DEResults_GSE#####_######
+
+**Step 6:** Filter DE results for rows with good gene annotation
+
+*Function:*
+
+- `FilteringDEResults_GoodAnnotation()`: Function to filter rows with good gene 
+annotation
+
+*Output objects:*
+
+- DEResults_GSE##### (Separated from "differentials")
+
+- DE_Results_GSE#####_GoodAnnotation 
+
+**Step 7:** Extract DE results for the contrasts of interest
+
+*Functions:*
+
+- `GetContrastIDsforResultSet()`: Function to extract the contrast ID using FC column 
+names (Used within function `ExtractingDEResultsForContrasts()`)
+
+- `ExtractingDEResultsForContrasts()`: Function to extract DE results for contrasts
+of interest
+
+- `GetContrastStatColumns()`: Function to extract the Log2FC and T-stat of contrasts
+of interest
+
+*Output objects:*
+
+- Contrast_Log2FC_GSE###### | Contrast_Tstat_GSE##### | ComparisonOfInterest_GSE#####
+
+- DE_Results_Contrasts_GSE#####
+
+**Step 8:** Collapse DE results to one result per gene & Calculate standard error
+and sampling variance
+
+Gene expression can be measured using multiple probes (microarray). Therefore,
+DE results need to be collapsed to one result per gene.
+
+Log2FC: Log 2 of the fold change values between 2 groups 
+
+T-statistics: The ratio of the difference in a number's estimated value from its
+assumed value to its standard error
+
+Standard error of Log2FC = Log2FC/T-statistics
+
+Sampling variance = Average of standard error of each gene^2
+
+*Function:*
+
+- `CollapsingDEResults_OneResultPerGene()`: Function to average Log2FC, Tstat, standard
+error (SE) and calculate sampling variance (SV) to one unique gene per dataset 
+
+*Output objects:*
+
+- NameOfFoldChangeColumns_GSE##### | NameOfTstatColumns_GSE#####
+
+- Collapsing_DEResults_GSE##### folder with 4 different objects:
+
+DEResults_GSE#####_GoodAnnotation_FoldChange_AveragedByGene
+
+DE_Results_GSE#####_GoodAnnotation_Tstat_AveragedByGene
+
+DE_Results_GSE#####_GoodAnnotation_SE_AveragedByGene
+
+DE_Results_GSE#####_GoodAnnotation_SV
+
+
+**Step 9:** Align DE results from same models (either from mouse model or rat model)
+
+As DE results from different datasets are in slightly different orders due to 
+various experimental factors, we want to align these results so that the DE results 
+from each dataset are columns, with each row representing a different gene.
+
+*Function:*
+
+- `AligningMouseDatasets()`: Function to align all mouse DE results from different
+datasets into a single dataframe for Log2FC and SV
+
+*Output objects:*
+
+- Mouse_MetaAnalysis_FoldChanges
+
+- Mouse_MetaAnalysis_SV
+
+**Step 10:** Align DE results from different models (combine DE results from both 
+mouse model and rat model using the ortholog database from Jackson Lab) 
+
+###### Problem with extra NA when joining the original dataframe with the ortholog database
+
+*Output Objects:*
+
+- MouseVsRat_NCBI_Entrez
+
+- Mouse_MetaAnalysis_FoldChanges_wOrthologs
+
+- Mouse_MetaAnalysis_SV_wOrthologs
+
+- MetaAnalysis_FoldChanges
+
+- MetaAnalysis_SV
+
+**Step 11:** Compare Log2FC across datasets with correlation matrix and hierarchically 
+clustered heatmap
+
+*Output Objects:*
+
+- MetaAnalysis_CorMatrix_FoldChanges
+
+- Hierarchically clustered heatmaps 
+
+**Step 12:** Meta-analysis with random effect models
+
+Meta-analysis is performed using effect sizes (Log2FC) and sampling variances (SV)
+
+*Function:*
+
+- `RunBasicMetaAnalysis()`: Function to perform meta-analysis
+
+*Output Objects:*
+
+- MetaAnalysis_FoldChanges_NAsPerRow
+
+- CutOffForNAs
+
+- NumberOfComparisons
+
+- MetaAnalysis_Results_0NA
+
+- metaOutput_0NA | MetaAnalysis_Annotation_0NA | MetaAnalysis_FoldChanges_ForMeta_0NA |
+MetaAnalysis_SV_ForMeta_0NA (Separated from MetaAnalysis_Results_0NA)
+
+**Step 13:** Correct p-value for each gene using Benjamini-Hochberg method for 
+False Discovery Rate (FDR or q-value)
+
+*Function:*
+
+- `FalseDiscoveryCorrection()`: Function to correct FDR and extract gene with certain
+threshold of FDR and Log2FC
+
+*Output Objects:*
+
+- HOM_MouseVsRat
+
+- metaOutputFDR_all_0NA
+
+- metaOutputFDR_0NA | metaOutputFDR_Annotated_0NA | metaOutputFDR_OrderByPval_0NA |
+metaOutputFDR_OrderbyPval_Log2FC_2_0NA | metaOutputFDR_OrderbyPval_Log2FC_1_0NA |
+metaOutputFDR_OrderbyPval_Log2FC_0.5_0NA (Separated from metaOutputFDR_all_0NA)
+
+**Step 14:** Create forest plots for statistically significant genes 
+
+*Function:*
+
+- `MakeForestPlots()`: Function to generate forest plots
+
+*Output Objects:*
+
+- Forest plots of statistically significant genes
+
+**Step 15:** Retrieve gene function from NCBI using Entrez ID
+
+*Function:*
+
+- `GetGeneFunctionByID()`: Function to get gene function from NCBI using Entrez 
+Gene ID 
+
+*Output Objects:*
+
+- EntrezGeneList_Log2FC_1_0NA
+
+- GeneFunction_Log2FC_1_0NA
+
+**Step 16:** Enrichment Analysis with KEGG/GO/Reactome databases
+
+*Function:*
+
+- `GSEAPerform_KEGG_GO_Reactome()`: Function to perform GSEA on common databases, 
+including KEGG, GO, and Reactome
+
+*Output Object:*
+
+- KEGG_metaOutputFDR_Log2FC_#_0NA_FDR_0.05
+
+- KEGGgenedata_metaOutputFDR_Log2FC_#_0NA
+
+- mmu04061
+
+- mmu04621
+
+- mmu05164
+
+- GSEA_Log2FC_#_0NA
+
+- GSEA_Log2FC_#_0NA_KEGG
+
+- GSEA_Log2FC_#_0NA_GO
+
+- GSEA_Log2FC_#_0NA_Reactome
+
+**Step 17:** Fast Gene Set Enrichment Analysis with Brain.GMT database (developed by
+Dr. Hagenauer)
+
+*Output Object:*
+
+- BrainGMTgenedata_metaOutputFDR_Log2FC_#_0NA
+
+- BrainGMTgenedata_metaOutputFDR_Log2FC_#_0NA_cleaned
+
+- BrainGMTgenedata_metaOutputFDR_OrderedByLog2FC_#_0NA
+
+- BrainGMT_Mouse
+
+- GSEA_Log2FC_#_0NA_BrainGMT
+
+
+### 1) Project Set Up
+
+```{r setdw, eval = FALSE, echo = FALSE}
+# Set working directory 
+setdw("/Users/manhduynguyen/BDA_2025_ViralEncephalitis")
+```
+
+
+```{r renv, eval = FALSE, echo = FALSE}
+# Initiate the project with renv
+renv::init()
+
+# Save to lockfile
+renv::snapshot()
+```
+
+
+```{r install_pack, eval = FALSE, echo = FALSE}
+# Download packages
+if(!requireNamespace("devtools", quietly = T)){
+  install.packages("devtools")
+}
+devtools:: install_github("PavlidisLab/gemma.R", force = T)
+
+# Do not update any packages when prompted to do so
+if (!require("BiocManager", quietly = TRUE))
+  install.packages("BiocManager")
+BiocManager::install("multtest")                                 
+BiocManager::install("clusterProfiler")
+# Mus musculus (Mouse gene annotation database)
+# Other databases include:
+# 1. Rattus norvegicus (Rat) - org.Rn.eg.db
+# 2. Homo sapiens (Human) - org.Hs.eg.db
+BiocManager::install("org.Mm.eg.db")  
+BiocManager::install("ReactomePA")  
+BiocManager::install("fgsea")
+BiocManager::install("pathview")
+
+install.packages("plyr")
+install.packages("metafor")
+install.packages("tidyverse")
+install.packages("writexl")
+install.packages("pheatmap")
+install.packages("RColorBrewer")
+install.packages("viridis")
+install.packages("rentrez")
+```
+
+
+```{r load_pack, message = FALSE}
+# Load packages
+library("gemma.R")
+library("plyr")
+library("metafor")
+library("tidyverse")
+library("writexl")
+library("pheatmap")
+library("RColorBrewer")
+library("viridis")
+library("multtest")
+library("rentrez")
+library("clusterProfiler")
+library("org.Mm.eg.db")
+library("ReactomePA")
+library("fgsea")
+library("pathview")
+
+# Check loaded packages 
+(.packages())
+```
+
+
+### 2) Gemma Dataset Search
+
+```{r data_search}
+# Search blocks on variations of "viral encephalitis", "neurotropic viruses",
+# ""neuroinvasive viruses", "neurovirulent viruses", "CNS viral infection",
+# "viral meningoencephalitis", "post-viral encephalitis", "brain infection", 
+# "brain inflammation" and the specific virus names
+
+gen_term_query <- "(((((((((((\"viral encephalitis\") OR (\"virus-induced encephalitis\")) OR (\"neurotropic virus infection*\")) OR (\"neuroinvasive virus*\")) OR (\"neurovirulent virus*\")) OR (\"viral brain infection*\")) OR (\"CNS viral infection*\")) OR (\"central nervous system viral infection*\")) OR (\"viral meningoencephalitis\")) OR (\"post-viral encephalitis\")) OR 
+          (((((((((((\"neurotropic virus*\") OR (\"neurotropic infection*\")) OR (\"neurotropic pathogen*\")) OR (\"neuroinvasive virus*\")) OR (\"neurovirulent virus*\")) OR (\"CNS tropism\")) OR (\"brain tropism\")) OR (\"neurotropic mechanism*\")) OR (\"neurotropic response*\")) OR (\"neurotropic disease*\")) OR (\"neurotropic encephalitis\")) OR 
+          (((((((((((\"neuroinvasive virus*\") OR (\"neuroinvasive pathogen*\")) OR (\"neurotropic virus*\")) OR (\"neurovirulent virus*\")) OR (\"CNS invasion\")) OR (\"brain invasion\")) OR (\"neuroinvasive mechanism*\")) OR (\"neuroinvasive response*\")) OR (\"neuroinvasive disease*\")) OR (\"neuroinvasive encephalitis\")) OR 
+          (((((((((((\"neurovirulent virus*\") OR (\"neurovirulent pathogen*\")) OR (\"neurotropic virus*\")) OR (\"neuroinvasive virus*\")) OR (\"CNS virulence\")) OR (\"brain virulence\")) OR (\"neurovirulent mechanism*\")) OR (\"neurovirulent response*\")) OR (\"neurovirulent disease*\")) OR (\"neurovirulent encephalitis\")) OR 
+          (((((((((((\"CNS viral infection*\") OR (\"central nervous system viral infection*\")) OR (\"viral brain infection*\")) OR (\"neurotropic virus infection*\")) OR (\"neuroinvasive virus infection*\")) OR (\"neurovirulent virus infection*\")) OR (\"viral meningoencephalitis\")) OR (\"post-viral encephalitis\")) OR (\"viral encephalopathy\")) OR (\"viral CNS disease*\")) OR 
+          (((((((((((\"viral meningoencephalitis\") OR (\"viral encephalitis\")) OR (\"CNS viral infection*\")) OR (\"neurotropic virus infection*\")) OR (\"neuroinvasive virus infection*\")) OR (\"neurovirulent virus infection*\")) OR (\"viral brain infection*\")) OR (\"viral CNS disease*\")) OR 
+          (((((((((((\"post-viral encephalitis\") OR (\"post-infectious encephalitis\")) OR (\"post-viral CNS disease*\")) OR (\"post-viral brain infection*\")) OR (\"post-viral neuroinflammation\")) OR (\"post-viral neuroimmune response*\")) OR (\"post-viral neurovirulence\")) OR (\"post-viral neurotropism\"))"
+
+virus_query <- "(((((((((((\"Zika virus\") OR (\"Zika\")) OR (\"ZIKV\")) OR (\"Zika infection*\")) OR (\"Zika disease*\")) OR
+                ((((((\"Chikungunya virus\") OR (\"Chikungunya\")) OR (\"CHIKV\")) OR (\"Chikungunya infection*\")) OR (\"Chikungunya disease*\")))) OR 
+                ((((((\"West Nile virus\") OR (\"West Nile\")) OR (\"WNV\")) OR (\"West Nile infection*\")) OR (\"West Nile disease*\")))) OR 
+                ((((((\"Japanese encephalitis virus\") OR (\"Japanese encephalitis\")) OR (\"JEV\")) OR (\"Japanese encephalitis infection*\")) OR (\"Japanese encephalitis disease*\")))) OR 
+                ((((((\"Venezuelan equine encephalitis virus\") OR (\"Venezuelan equine encephalitis\")) OR (\"VEEV\")) OR (\"Venezuelan equine encephalitis infection*\")) OR (\"Venezuelan equine encephalitis disease*\")))) OR 
+                ((((((\"St. Louis encephalitis virus\") OR (\"St. Louis encephalitis\")) OR (\"SLEV\")) OR (\"St. Louis encephalitis infection*\")) OR (\"St. Louis encephalitis disease*\")))) OR 
+                ((((((\"Polio virus\") OR (\"Polio\")) OR (\"Poliovirus\")) OR (\"Polio infection*\")) OR (\"Polio disease*\")))) OR 
+                ((((((\"Mumps virus\") OR (\"Mumps\")) OR (\"Mumps infection*\")) OR (\"Mumps disease*\")))) OR 
+                ((((((\"Measles virus\") OR (\"Measles\")) OR (\"Measles infection*\")) OR (\"Measles disease*\")))) OR 
+                ((((((\"Nipah virus\") OR (\"Nipah\")) OR (\"NiV\")) OR (\"Nipah infection*\")) OR (\"Nipah disease*\")))) OR 
+                ((((((\"Hendra virus\") OR (\"Hendra\")) OR (\"HeV\")) OR (\"Hendra infection*\")) OR (\"Hendra disease*\")))) OR 
+                ((((((\"Herpesvirus*\") OR (\"Herpes\")) OR (\"HSV\")) OR (\"Herpes infection*\")) OR (\"Herpes disease*\")))) OR 
+                ((((((\"Varicella zoster virus\") OR (\"Varicella zoster\")) OR (\"VZV\")) OR (\"Varicella zoster infection*\")) OR (\"Varicella zoster disease*\")))) OR 
+                ((((((\"Epstein-Barr virus\") OR (\"Epstein-Barr\")) OR (\"EBV\")) OR (\"Epstein-Barr infection*\")) OR (\"Epstein-Barr disease*\")))) OR 
+                ((((((\"Cytomegalovirus\") OR (\"CMV\")) OR (\"Cytomegalovirus infection*\")) OR (\"Cytomegalovirus disease*\")))) OR 
+                ((((((\"Rabies virus\") OR (\"Rabies\")) OR (\"Rabies infection*\")) OR (\"Rabies disease*\")))) OR 
+                ((((((\"Influenza virus\") OR (\"Influenza\")) OR (\"Flu\")) OR (\"Influenza infection*\")) OR (\"Influenza disease*\")))) OR 
+                ((((((\"Coronavirus\") OR (\"COVID-19\")) OR (\"SARS-CoV-2\")) OR (\"Coronavirus infection*\")) OR (\"Coronavirus disease*\")))) OR 
+                ((((((\"Yellow fever virus\") OR (\"Yellow fever\")) OR (\"YFV\")) OR (\"Yellow fever infection*\")) OR (\"Yellow fever disease*\"))))"
+
+
+gen_term_mouse_datasets <- get_datasets(
+  query = gen_term_query,
+  taxa = c("mouse")
+) %>%
+  get_all_pages()
+
+virus_term_mouse_datasets <- get_datasets(
+  query = virus_query,
+  taxa = c("mouse")
+) %>%
+  get_all_pages()
+
+total_mouse_datasets <- unique(rbind(gen_term_mouse_datasets,
+                                     virus_term_mouse_datasets))
+
+gen_term_human_datasets <- get_datasets(
+  query = gen_term_query,
+  taxa = c("human")
+) %>%
+  get_all_pages()
+
+virus_term_human_datasets <- get_datasets(
+  query = virus_query,
+  taxa = c("human")
+) %>%
+  get_all_pages()
+
+total_human_datasets <- unique(rbind(gen_term_human_datasets,
+                                     virus_term_human_datasets))
+
+write_xlsx(total_mouse_datasets, "TotalDatasets_Mouse_20250530.xlsx")
+write_xlsx(total_human_datasets, "TotalDatasets_Human_20250530.xlsx")
+
+# Filter for datasets with good quality and raw data available
+total_mouse_datasets_filtered <- total_mouse_datasets %>%
+  filter(experiment.troubled == FALSE & experiment.rawData == 1)
+
+total_human_datasets_filtered <- total_human_datasets %>%
+  filter(experiment.troubled == FALSE & experiment.rawData == 1)
+```
+
+### 3) Extraction of Annotations for Each Class in Each Dataset
+
+```{r func_extract_anno}
+# Create a function to extract annotations
+ExtractAnnotations <- function(dataset_shortname, annotation_class_name){
+  # Extract annotations for the dataset experiment.shortNameentified by dataset_shortname
+  exp_anno <- get_dataset_annotations(dataset = dataset_shortname)
+  
+  # Check if there are any annotations of the specified annotation_class_name
+  if(any(exp_anno$class.name == annotation_class_name)){
+    # If yes, return the term names associated with the specified annotation_class_name
+    return(exp_anno$term.name[exp_anno$class.name == annotation_class_name])
+  } else {
+    # If no, return NA
+    return(NA)
+  }
+}
+```
+
+
+```{r run_extract_anno_mouse, cache = TRUE}
+# Function use for mouse datasets
+
+# Extract annotation for organism part
+VE_mouse_annotations_organism_part <- sapply(total_mouse_datasets_filtered$experiment.shortName,
+                                             ExtractAnnotations,
+                                             annotation_class_name = "organism part") %>%
+  # Transform into a dataframe
+  enframe(name = "experiment.shortName", value = "Organism_part")
+
+# Extract annotation for cell type
+VE_mouse_annotations_cell_type <- sapply(total_mouse_datasets_filtered$experiment.shortName,
+                                         ExtractAnnotations,
+                                         annotation_class_name = "cell type") %>%
+  # Transform into a dataframe
+  enframe(name = "experiment.shortName", value = "Cell_type")
+
+# Extract annotation for developmental stage
+VE_mouse_annotations_dev_stage <- sapply(total_mouse_datasets_filtered$experiment.shortName,
+                                         ExtractAnnotations,
+                                         annotation_class_name = "developmental stage") %>%
+  # Transform into a dataframe
+  enframe(name = "experiment.shortName", value = "Developmental_stage")
+
+# Extract annotation for treatment
+VE_mouse_annotations_treatment <- sapply(total_mouse_datasets_filtered$experiment.shortName,
+                                         ExtractAnnotations,
+                                         annotation_class_name = "treatment") %>%
+  # Transform into a dataframe
+  enframe(name = "experiment.shortName", value = "Treatment")
+
+# Extract annotation for disease
+VE_mouse_annotations_disease <- sapply(total_mouse_datasets_filtered$experiment.shortName,
+                                       ExtractAnnotations,
+                                       annotation_class_name = "disease") %>%
+  # Transform into a dataframe
+  enframe(name = "experiment.shortName", value = "Disease")
+
+# Extract annotation for disease model
+VE_mouse_annotations_dis_model <- sapply(total_mouse_datasets_filtered$experiment.shortName,
+                                         ExtractAnnotations,
+                                         annotation_class_name = "Disease model") %>%
+  # Transform into a dataframe
+  enframe(name = "experiment.shortName", value = "Disease_model")
+
+# Extract annotation for genotype
+VE_mouse_annotations_geno <- sapply(total_mouse_datasets_filtered$experiment.shortName,
+                                    ExtractAnnotations,
+                                    annotation_class_name = "genotype") %>%
+  # Transform into a dataframe
+  enframe(name = "experiment.shortName", value = "Genotype")
+
+# Extract annotation for strain
+VE_mouse_annotations_strain <- sapply(total_mouse_datasets_filtered$experiment.shortName,
+                                      ExtractAnnotations,
+                                      annotation_class_name = "strain") %>%
+  # Transform into a dataframe
+  enframe(name = "experiment.shortName", value = "Strain")
+
+# Extract annotation for biological sex
+VE_mouse_annotations_sex <- sapply(total_mouse_datasets_filtered$experiment.shortName,
+                                   ExtractAnnotations,
+                                   annotation_class_name = "biological sex") %>%
+  # Transform into a dataframe
+  enframe(name = "experiment.shortName", value = "Biological_sex")
+```
+
+
+```{r run_extract_anno_human, cache = TRUE}
+# Function use for human datasets
+
+# Extract annotation for organism part
+VE_human_annotations_organism_part <- sapply(total_human_datasets_filtered$experiment.shortName,
+                                             ExtractAnnotations,
+                                             annotation_class_name = "organism part") %>%
+  # Transform into a dataframe
+  enframe(name = "experiment.shortName", value = "Organism_part")
+
+# Extract annotation for cell type
+VE_human_annotations_cell_type <- sapply(total_human_datasets_filtered$experiment.shortName,
+                                         ExtractAnnotations,
+                                         annotation_class_name = "cell type") %>%
+  # Transform into a dataframe
+  enframe(name = "experiment.shortName", value = "Cell_type")
+
+# Extract annotation for developmental stage
+VE_human_annotations_dev_stage <- sapply(total_human_datasets_filtered$experiment.shortName,
+                                         ExtractAnnotations,
+                                         annotation_class_name = "developmental stage") %>%
+  # Transform into a dataframe
+  enframe(name = "experiment.shortName", value = "Developmental_stage")
+
+# Extract annotation for treatment
+VE_human_annotations_treatment <- sapply(total_human_datasets_filtered$experiment.shortName,
+                                         ExtractAnnotations,
+                                         annotation_class_name = "treatment") %>%
+  # Transform into a dataframe
+  enframe(name = "experiment.shortName", value = "Treatment")
+
+# Extract annotation for disease
+VE_human_annotations_disease <- sapply(total_human_datasets_filtered$experiment.shortName,
+                                       ExtractAnnotations,
+                                       annotation_class_name = "disease") %>%
+  # Transform into a dataframe
+  enframe(name = "experiment.shortName", value = "Disease")
+
+# Extract annotation for disease model
+VE_human_annotations_dis_model <- sapply(total_human_datasets_filtered$experiment.shortName,
+                                         ExtractAnnotations,
+                                         annotation_class_name = "Disease model") %>%
+  # Transform into a dataframe
+  enframe(name = "experiment.shortName", value = "Disease_model")
+
+# Extract annotation for genotype
+VE_human_annotations_geno <- sapply(total_human_datasets_filtered$experiment.shortName,
+                                    ExtractAnnotations,
+                                    annotation_class_name = "genotype") %>%
+  # Transform into a dataframe
+  enframe(name = "experiment.shortName", value = "Genotype")
+
+# Extract annotation for strain
+VE_human_annotations_strain <- sapply(total_human_datasets_filtered$experiment.shortName,
+                                      ExtractAnnotations,
+                                      annotation_class_name = "strain") %>%
+  # Transform into a dataframe
+  enframe(name = "experiment.shortName", value = "Strain")
+
+# Extract annotation for biological sex
+VE_human_annotations_sex <- sapply(total_human_datasets_filtered$experiment.shortName,
+                                   ExtractAnnotations,
+                                   annotation_class_name = "biological sex") %>%
+  # Transform into a dataframe
+  enframe(name = "experiment.shortName", value = "Biological_sex")
+```
+
+
+#### 4) Extraction of Factors in Experimental Design of Each Dataset
+
+Sometimes it is difficult to determine from the abstract and dataset annotation 
+which variables were *actually manipulated* as part of the experiment. 
+
+This can be especially true for datasets that were part of much larger studies 
+containing multiple experiments.
+
+Gemma's information about the experimental design for the transcriptional profiling 
+experiment can clarify this. 
+
+```{r func_extract_factor, cache = TRUE}
+# Create a function to extract factors in experimental design 
+ExtractFactors <- function(dataset_shortname){
+  # Create a dataframe to store the results
+  factor_df <- data.frame(
+    experiment.shortName = dataset_shortname,
+    factor_info = vector(mode = "character", 
+                         length = length(dataset_shortname)),
+    treatment_factor_info = vector(mode = "character", 
+                                   length = length(dataset_shortname)),
+    baseline_factor_info = vector(mode = "character", 
+                                   length = length(dataset_shortname)),
+    stringsAsFactors = FALSE
+  )
+  
+  # Loop through each of the dataset 
+  for (i in c(1:length(dataset_shortname))){
+    
+    # Extract the differential expression analysis from the datasets 
+    design <- get_dataset_differential_expression_analyses(dataset_shortname[i])
+    
+    if(nrow(design) > 0){
+    # Concatenate the factor categories into a single string
+    factor_df$factor_info[i] <- paste(design$factor.category, collapse = ";")
+    
+    # Concatenate the experimental factors into a single string
+    treatment_factor <- sapply(design$experimental.factors, function(f) f$summary)
+    factor_df$treatment_factor_info[i] <- paste(treatment_factor, collapse = ";")
+    
+    # Concatenate the baseline factors into a single string 
+    baseline_factor <- sapply(design$baseline.factors, function(f) f$summary)
+    factor_df$baseline_factor_info[i] <- paste(baseline_factor, collapse = ";")
+    }
+  }
+  # Return the final dataframe 
+  return(factor_df)
+}  
+```
+
+
+```{r run_extract_factor, cache = TRUE}
+# Function use 
+VE_mouse_annotations_factor <- ExtractFactors(total_mouse_datasets_filtered$experiment.shortName)
+VE_human_annotations_factor <- ExtractFactors(total_human_datasets_filtered$experiment.shortName)
+```
+
+
+```{r data_combine_mouse, cache = TRUE}
+# Combine all annotations by experiment.shortName and create extra columns in 
+# the final dataframe
+VE_mouse_annotations_all <- total_mouse_datasets_filtered %>%
+  left_join(VE_mouse_annotations_organism_part, by = "experiment.shortName") %>%
+  left_join(VE_mouse_annotations_cell_type, by = "experiment.shortName") %>%
+  left_join(VE_mouse_annotations_dev_stage, by = "experiment.shortName") %>%
+  left_join(VE_mouse_annotations_treatment, by = "experiment.shortName") %>%
+  left_join(VE_mouse_annotations_disease, by = "experiment.shortName") %>%
+  left_join(VE_mouse_annotations_dis_model, by = "experiment.shortName") %>%
+  left_join(VE_mouse_annotations_geno, by = "experiment.shortName") %>%
+  left_join(VE_mouse_annotations_strain, by = "experiment.shortName") %>%
+  left_join(VE_mouse_annotations_sex, by = "experiment.shortName") %>%
+  left_join(VE_mouse_annotations_factor, by = "experiment.shortName") %>%
+
+  # Add empty columns to store screening notes 
+  mutate(Manipulation_unrelated_to_topic = 
+           vector(mode = "character", length = nrow(.)), 
+         Incorrect_developmental_stage = 
+           vector(mode = "character", length = nrow(.)), 
+         Not_bulk_dissection_Particular_Cell_type_or_Subregion = 
+           vector(mode = "character", length = nrow(.)),
+         Not_full_transcriptome = 
+           vector(mode = "character", length = nrow(.)),
+         Metadata_issues_Missing_info_NoPub_Retracted_Duplicated = 
+           vector(mode = "character", length = nrow(.)),
+         Excluded = 
+           vector(mode = "character", length = nrow(.)), 
+         Excluded_reason = 
+           vector(mode = "character", length = nrow(.)),
+         Included = 
+           vector(mode = "character", length = nrow(.)))
+
+# Transform the annotations into characters
+VE_mouse_annotations_all$Organism_part <- as.character(VE_mouse_annotations_all$Organism_part)
+VE_mouse_annotations_all$Cell_type <- as.character(VE_mouse_annotations_all$Cell_type)
+VE_mouse_annotations_all$Developmental_stage <- as.character(VE_mouse_annotations_all$Developmental_stage)
+VE_mouse_annotations_all$Treatment <- as.character(VE_mouse_annotations_all$Treatment)
+VE_mouse_annotations_all$Disease <- as.character(VE_mouse_annotations_all$Disease)
+VE_mouse_annotations_all$Disease_model <- as.character(VE_mouse_annotations_all$Disease_model)
+VE_mouse_annotations_all$Genotype <- as.character(VE_mouse_annotations_all$Genotype)
+VE_mouse_annotations_all$Strain <- as.character(VE_mouse_annotations_all$Strain)
+VE_mouse_annotations_all$Biological_sex <- as.character(VE_mouse_annotations_all$Biological_sex)
+
+# Extract the final dataframe into CSV
+write_csv(VE_mouse_annotations_all, "All_mouse_datasets_with_annotations.csv")
+```
+
+
+```{r data_combine_human, cache = TRUE}
+# Combine all annotations by experiment.shortName and create extra columns in 
+# the final dataframe
+VE_human_annotations_all <- total_human_datasets_filtered %>%
+  left_join(VE_human_annotations_organism_part, by = "experiment.shortName") %>%
+  left_join(VE_human_annotations_cell_type, by = "experiment.shortName") %>%
+  left_join(VE_human_annotations_dev_stage, by = "experiment.shortName") %>%
+  left_join(VE_human_annotations_treatment, by = "experiment.shortName") %>%
+  left_join(VE_human_annotations_disease, by = "experiment.shortName") %>%
+  left_join(VE_human_annotations_dis_model, by = "experiment.shortName") %>%
+  left_join(VE_human_annotations_geno, by = "experiment.shortName") %>%
+  left_join(VE_human_annotations_strain, by = "experiment.shortName") %>%
+  left_join(VE_human_annotations_sex, by = "experiment.shortName") %>%
+  left_join(VE_human_annotations_factor, by = "experiment.shortName") %>%
+
+  # Add empty columns to store screening notes 
+  mutate(Manipulation_unrelated_to_topic = 
+           vector(mode = "character", length = nrow(.)), 
+         Incorrect_developmental_stage = 
+           vector(mode = "character", length = nrow(.)), 
+         Not_bulk_dissection_Particular_Cell_type_or_Subregion = 
+           vector(mode = "character", length = nrow(.)),
+         Not_full_transcriptome = 
+           vector(mode = "character", length = nrow(.)),
+         Metadata_issues_Missing_info_NoPub_Retracted_Duplicated = 
+           vector(mode = "character", length = nrow(.)),
+         Excluded = 
+           vector(mode = "character", length = nrow(.)), 
+         Excluded_reason = 
+           vector(mode = "character", length = nrow(.)),
+         Included = 
+           vector(mode = "character", length = nrow(.)))
+
+# Transform the annotations into characters
+VE_human_annotations_all$Organism_part <- as.character(VE_human_annotations_all$Organism_part)
+VE_human_annotations_all$Cell_type <- as.character(VE_human_annotations_all$Cell_type)
+VE_human_annotations_all$Developmental_stage <- as.character(VE_human_annotations_all$Developmental_stage)
+VE_human_annotations_all$Treatment <- as.character(VE_human_annotations_all$Treatment)
+VE_human_annotations_all$Disease <- as.character(VE_human_annotations_all$Disease)
+VE_human_annotations_all$Disease_model <- as.character(VE_human_annotations_all$Disease_model)
+VE_human_annotations_all$Genotype <- as.character(VE_human_annotations_all$Genotype)
+VE_human_annotations_all$Strain <- as.character(VE_human_annotations_all$Strain)
+VE_human_annotations_all$Biological_sex <- as.character(VE_human_annotations_all$Biological_sex)
+
+# Extract the final dataframe into CSV
+write_csv(VE_human_annotations_all, "All_human_datasets_with_annotations.csv")
+```
+
+Through process of inclusion/exclusion criteria, 16 datasets are included in the 
+meta-analysis, including: 
+GSE42264
+GSE44331
+GSE51365
+GSE53784
+GSE91074
+GSE94789.1
+GSE159226
+GSE188514
+GSE134685
+GSE205140
+GSE197868
+GSE213898
+GSE237092
+GSE233216
+GSE226495
+GSE243200
+
+(5/30/2025)
+
+### 5) Gene Expression Range Assessment
+
+```{r func_check_gene_express}
+# Create a function to check the expression range of the dataset 
+# (especially for the Agilent microarray datasets)
+CheckGeneExpressionRange <- function(dataset_shortname){
+  
+  # Retrieve the processed expression data for the given dataset
+  expression_data <- get_dataset_processed_expression(dataset_shortname)
+  
+  # Print the structure of the expression data
+  print(str(expression_data))
+  
+  # The first four columns are row metadata: Probe, GeneSymbol, GeneName, NCBI ID
+  # The rest of the columns are gene expression values for each subject
+  
+  # Exclude metadata row (row 1-4) and convert the gene expression columns to a 
+  # matrix for further analysis 
+  expression_matrix <- as.matrix(expression_data[,-1:-4])
+  
+  # Create a histogram of the expression data 
+  hist(expression_matrix, 
+       main = paste("Histogram of Expression Data for", dataset_shortname),
+       # The y-axis is the gene frequency
+       # The x-axis is log 2 gene expression - log 2 counts per million
+       xlab = "Log 2 Expression", ylab = "Frequency")
+  
+       # The large spike on the left side of the histogram ("floor effect") are 
+       # all of the genes that are not truly expressed or have too low of expression 
+       # to be measurable 
+  
+  # Log 2 RNA-seq dataset has the range between -5 to 12
+  # Log 2 Microarray dataset has the range between 4 to 15
+  
+  # Calculate the min, median, max values of the expression data
+  min_val <- min(expression_matrix, na.rm = TRUE)
+  median_val <- median(expression_matrix, na.rm = TRUE)
+  max_val <- max(expression_matrix, na.rm = TRUE)
+  
+  # Print the calculated values
+  print(paste("Minimum value:", min_val))
+  print(paste("Median value:", median_val))
+  print(paste("Maximum value:", max_val))
+}
+```
+
+
+```{r run_check_gene_express, cache = TRUE}
+# Function use 
+CheckGeneExpressionRange("GSEGSE42264") # Min:  | Max:  | 
+CheckGeneExpressionRange("GSEGSE44331") # Min:  | Max:  | 
+CheckGeneExpressionRange("GSEGSE51365") # Min:  | Max:  | 
+CheckGeneExpressionRange("GSEGSE53784") # Min: | Max: | 
+CheckGeneExpressionRange("GSEGSE91074") # Min: | Max: | 
+CheckGeneExpressionRange("GSEGSE94789.1") # Min: | Max: | 
+CheckGeneExpressionRange("GSEGSE159226") # Min: | Max: | 
+CheckGeneExpressionRange("GSEGSE188514") # Min: | Max: | 
+CheckGeneExpressionRange("GSEGSE134685") # Min: | Max: | 
+CheckGeneExpressionRange("GSEGSE205140") # Min: | Max: | 
+CheckGeneExpressionRange("GSEGSE197868") # Min: | Max: | 
+CheckGeneExpressionRange("GSEGSE213898") # Min: | Max: | 
+CheckGeneExpressionRange("GSEGSE237092") # Min: | Max: | 
+CheckGeneExpressionRange("GSEGSE233216") # Min: | Max: | 
+CheckGeneExpressionRange("GSEGSE226495") # Min: | Max: | 
+CheckGeneExpressionRange("GSEGSE243200") # Min: | Max: | 
+```
